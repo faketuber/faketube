@@ -1,16 +1,13 @@
 #!/usr/bin/python3.9
-
 import discord
-import youtube_dl.utils
 from discord.ext.commands import Bot
 from discord.ext import tasks
+from requests import get
 from youtube_dl import YoutubeDL
 
 bot = Bot(command_prefix='.')
 global song_dictionary
 song_dictionary = {}
-#global song_queue
-#song_queue = []
 global current_voice_client
 current_voice_client = None
 global current_url_request
@@ -18,15 +15,37 @@ current_url_request = None
 global current_ctx
 current_ctx = None
 
+
+async def search(arg):
+    YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': 'True'}
+    with YoutubeDL(YDL_OPTIONS) as ydl:
+        try:
+            get(arg)
+        except:
+            video = ydl.extract_info(f"ytsearch:{arg}", download=False)['entries'][0]
+        else:
+            video = ydl.extract_info(arg, download=False)
+
+    return video
+
 @bot.command(aliases=['p'])
-async def play(ctx, url: str, voice_ctx_based_play=None):
+async def play(ctx, *, args, voice_ctx_based_play=None):
     global song_dictionary
     global current_url_request
     global current_voice_client
     global current_ctx
     YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': 'True'}
-
     FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+
+    temp_args = args
+    args = ''
+    print(temp_args)
+    for arg in temp_args:
+        args += arg
+
+
+    video_dict = await search(args)
+    url = video_dict.get('webpage_url')
 
     try:
         if ctx is None:
@@ -93,19 +112,12 @@ async def queue_each():
         pass
     elif current_voice_client.is_playing() and current_url_request is not None:
         if song_dictionary.get(current_ctx.author.voice.channel.id) is None:
-            print('In none if part')
-            print('Before init_queue:\t'+str(song_dictionary))
-            print('Current URL:\t'+current_url_request)
             init_queue = [current_url_request]
             song_dictionary[current_ctx.author.voice.channel.id] = init_queue
-            print('After init_queue:\t'+ str(song_dictionary))
         elif song_dictionary.get(current_ctx.author.voice.channel.id) is not None:
-            print('in elif part')
-            print('Before appending\t '+str(song_dictionary))
             new_queue = song_dictionary.get(current_ctx.author.voice.channel.id)
             new_queue.append(current_url_request)
             song_dictionary[current_ctx.author.voice.channel.id] = new_queue
-            print('After appending\t '+str(song_dictionary))
         else:
             pass
 
@@ -121,7 +133,7 @@ async def check_bots_playing():
         elif not voice.is_playing() and song_dictionary.get(voice.channel.id) is not None \
                 and len(song_dictionary.get(voice.channel.id)) != 0:
             print(song_dictionary)
-            await play(ctx=None, voice_ctx_based_play=voice,url=song_dictionary.get(voice.channel.id).pop(0))
+            await play(ctx=None, voice_ctx_based_play=voice,args=song_dictionary.get(voice.channel.id).pop(0))
 
 
 check_bots_playing.start()
