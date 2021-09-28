@@ -92,9 +92,23 @@ async def queue_each():
     if current_voice_client is None:
         pass
     elif current_voice_client.is_playing() and current_url_request is not None:
-        song_dictionary[current_ctx.author.voice.channel.id] = []
-        song_dictionary.get(current_ctx.author.voice.channel.id).append(current_url_request)
-        print(song_dictionary)
+        if song_dictionary.get(current_ctx.author.voice.channel.id) is None:
+            print('In none if part')
+            print('Before init_queue:\t'+str(song_dictionary))
+            print('Current URL:\t'+current_url_request)
+            init_queue = [current_url_request]
+            song_dictionary[current_ctx.author.voice.channel.id] = init_queue
+            print('After init_queue:\t'+ str(song_dictionary))
+        elif song_dictionary.get(current_ctx.author.voice.channel.id) is not None:
+            print('in elif part')
+            print('Before appending\t '+str(song_dictionary))
+            new_queue = song_dictionary.get(current_ctx.author.voice.channel.id)
+            new_queue.append(current_url_request)
+            song_dictionary[current_ctx.author.voice.channel.id] = new_queue
+            print('After appending\t '+str(song_dictionary))
+        else:
+            pass
+
         current_url_request = None
 
 @tasks.loop(seconds=0.5)
@@ -106,10 +120,15 @@ async def check_bots_playing():
             pass
         elif not voice.is_playing() and song_dictionary.get(voice.channel.id) is not None \
                 and len(song_dictionary.get(voice.channel.id)) != 0:
-            await play(ctx=None, voice_ctx_based_play=voice,url=song_dictionary.get(voice.channel.id).pop())
+            print(song_dictionary)
+            await play(ctx=None, voice_ctx_based_play=voice,url=song_dictionary.get(voice.channel.id).pop(0))
 
 
 check_bots_playing.start()
 queue_each.start()
-bot.run('ODg5NDk0MzY2NzEwODE2ODA4.YUiELw.-oEfb_iyl8t3z8SXfGA9QW7GAFc')
 
+token = ''
+with open('token.txt') as file:
+    token = file.readline()
+    file.close()
+bot.run(token)
